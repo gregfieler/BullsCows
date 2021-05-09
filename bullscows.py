@@ -7,34 +7,30 @@ import config as cfg
 from tabulate import tabulate
 import logging
 
-def game_log (message):
-  if cfg.print_debug_msgs:
-    print(message)
-
 def setup_dataframe(game_positions, guess_range):
   """
   build the positions and guess/answer dataframe with initial probabilities
   positions are represented by cols, guess values (guess_range) by rows
   """
-  ges_list = []
+  guess_list = []
   for g in range(guess_range):
-    ges_list.append(g)
-  pos_list = []
+    guess_list.append(g)
+  position_list = []
   for p in range(game_positions):
-    pos_list.append(p)
+    position_list.append(p)
 
-  initial_probability = 1 / guess_range
-  guess_position_matrix = pd.DataFrame(columns=pos_list, index=ges_list).fillna(initial_probability)
+  initial_weight = 1 / guess_range
+  guess_position_matrix = pd.DataFrame(columns=position_list, index=guess_list).fillna(initial_weight)
   return guess_position_matrix
 
 def random_answer (game_positions, guess_range):
   """
-  generate a random answer (list) of the size specified by game_posistions
-  using the number of possible values based on guess_range
+  generate a random answer (list)
   returns: answer
   """  
   # use np.random.seed(n) for testing
-  #   np.random.seed(999) # answer: 5x10 [0, 5, 1, 8, 1] 
+  if debug:
+    np.random.seed(999) # answer: 5x10 [0, 5, 1, 8, 1] 
   answer = []
   for i in range(game_positions):
     answer.append(np.random.randint(0,guess_range))
@@ -50,11 +46,11 @@ def generate_factors():
   cows_factor = 1
   clue_factor = (clue[0] + clue[1]) / game_positions
   if clue[0] != game_positions:
-      bulls_factor = (game_positions / (game_positions - clue[0])) + (cfg.bulls_weight * clue_factor)
+    bulls_factor = (game_positions / (game_positions - clue[0])) + (cfg.bulls_weight * clue_factor)
   if clue[1] != game_positions:
-      cows_factor = (game_positions / (game_positions - clue[1])) + (cfg.cows_weight * clue_factor) 
+    cows_factor = (game_positions / (game_positions - clue[1])) + (cfg.cows_weight * clue_factor) 
   else:
-      cows_factor = cfg.all_cows_factor * clue_factor 
+    cows_factor = cfg.all_cows_factor * clue_factor 
 
   return (clue_factor, bulls_factor, cows_factor)
 
@@ -67,14 +63,27 @@ def generate_guess():
       weights.append(choice_weight)
       guess = guess_position_matrix[guess_position_matrix[i]==choice_weight[0]].index.values
       guess_list.append(guess)
-  game_log("generate_guess: guess list {} weights {}".format(guess_list,weights))
+  logging.debug("generate_guess: guess list {} weights {}".format(guess_list,weights))
   guess = []
   # randomly choose one of the values with the highest weight
   for i in range(game_positions):
       guess.append(random.choice(guess_list[i]))
-  game_log("generate_guess: working guess {}".format(guess))
+  logging.debug("generate_guess: working guess {}".format(guess))
+  logging.debug("generate_guess: matrix {}".format(guess_position_matrix))
 
   return guess
+
+def normalize_matrix():
+  logging.info("normalize matrix at guess {}".format(len(guesses_clues)))
+  logging.debug("matrix before normalize at guess {}\n{}".format(len(guesses_clues),guess_position_matrix))
+  # guess_position_matrix = (guess_position_matrix - guess_position_matrix.mean()) / guess_position_matrix.std()
+  # guess_position_matrix[guess_position_matrix != 0] = 1 / game_positions
+  guess_position_matrix[guess_position_matrix >1 ] = 1 - (1 / game_positions)
+  # for position in range(game_positions):
+  #     for value in range(guess_range):
+  #         if guess_position_matrix.loc[value,position] > 1:
+  #           guess_position_matrix.loc[value,position] = 1 - (1 / game_positions)
+  logging.debug("matrix after normalize \n{}".format(guess_position_matrix))
 
 def generate_best_guess ():
     """
@@ -85,11 +94,12 @@ def generate_best_guess ():
     valid_guess = True
     while not good_guess:
       guess = generate_guess()
+      guess_counts["guesses_generated"] += 1  
       # check to see if all_in_answer is satisfied
       ### answer must include is cccc <-- ooops, this is the wrong way
       if getting_close: # a previous guess had all the correct values
           check_them_off = copy.copy(all_in_answer)
-          game_log("generate_best_guess: guess {} all in {}".format(guess,check_them_off))
+          logging.debug("generate_best_guess: guess {} all in {}".format(guess,check_them_off))
           # walk thru must include - check them off
           match_count = 0
           valid_guess = True
@@ -107,15 +117,18 @@ def generate_best_guess ():
       inconsistent_guess = False
       for prev_guess in guesses_clues:
         if guess == prev_guess[0]:
-          game_log("generate_best_guess: already tried {}, resetting weights".format(guess))
+          logging.debug("generate_best_guess: already tried {}, resetting weights".format(guess))
+          guess_counts["duplicate_guesses"] += 1 
           repeated_guess = True
           #todo a better way - based on now many times the guess/pos has had high bulls scores (dictionary)
-          guess_position_matrix[guess_position_matrix != 0] = 1 / game_positions
+          # guess_position_matrix[guess_position_matrix != 0] = 1 / game_positions
+          normalize_matrix()
         else:
           # use the guess as the answer and make sure all of previous guesses give the same answer
           match_clue = generate_clue(guess, prev_guess[0])
           if match_clue != prev_guess[1]:
-            game_log("guess {} is not consistent with previous clues {}".format(guess, match_clue))
+            logging.debug("guess {} is not consistent with previous clues {}".format(guess, match_clue))
+            guess_counts["inconsistent_guesses"] +=1
             inconsistent_guess = True
 
       if valid_guess and not repeated_guess and not inconsistent_guess:  # valid guess should never be repeated?!
@@ -129,22 +142,25 @@ def process_clue():
     """
     # generate_factors
     clue_factor, bulls_factor, cows_factor = generate_factors()
-    game_log("process_clue: factors: clue {:.4f} bulls {:.4f} cows {:.4f}".format(clue_factor, bulls_factor, cows_factor))
+    logging.debug("process_clue: factors: clue {:.4f} bulls {:.4f} cows {:.4f}".format(clue_factor, bulls_factor, cows_factor))
     
     if clue[0] == 0 and clue[1] == 0:  # none of these values are in the answer
-        game_log("process_clue: best clue no bulls or cows: zero out guess in all positions {}".format(guess))
+        logging.info("process_clue: best clue no bulls or cows: zero out guess in all positions {}".format(guess))
+        clue_counts["clue_bulls0cows0"] += 1
         for position in range(game_positions):
             guess_position_matrix.loc[guess[position]] = 0
     else:
         if clue[0] == 0:  # nothing is in the right spot
-            game_log("process_clue: great clue no bulls: zero out guess position {}".format(guess))
+            logging.info("process_clue: great clue no bulls: zero out guess position {}".format(guess))
+            clue_counts["clue_bulls0"] += 1   
             for position in range(game_positions):
                 guess_position_matrix.loc[guess[position],position] = 0
                 for value in range(guess_range):
                     guess_position_matrix.iloc[value,position] = guess_position_matrix.iloc[value,position] * bulls_factor * cows_factor
 
     if clue[0] == 0 and clue[1] == game_positions: # all the right values none in correct position
-        game_log("process_clue: great clue no cows: zero out guess position, strenghen weight in other positions {}".format(guess))
+        logging.info("process_clue: great clue no cows: zero out guess position, strenghen weight in other positions {}".format(guess))
+        clue_counts["clue_bulls0cowsA"] += 1
         for position in range(game_positions):
             guess_position_matrix.loc[guess[position],position] = 0
             for value in range(guess_range):
@@ -152,10 +168,13 @@ def process_clue():
 
     if clue[0] != 0:
         # adjust prob for bulls multiply current value by factor of bulls/positions (pos/(pos-bulls))
-        game_log("process_clue: good clue - adjust weights {} by *  c{:.4f}*b{:.4f}+c{:.4f}".format(guess,clue_factor,bulls_factor,cows_factor))
+        logging.info("process_clue: good clue - adjust weights {} by *  c{:.4f}*b{:.4f}+c{:.4f}".format(guess,clue_factor,bulls_factor,cows_factor))
+        clue_counts["clue_bullsX"] += 1
         for position in range(game_positions):
             guess_position_matrix.loc[guess[position],position] = \
             guess_position_matrix.loc[guess[position],position] * bulls_factor * cows_factor
+
+    logging.info("matrix\n{}".format(guess_position_matrix))
 
     all_in_answer = []
     getting_close = False
@@ -163,8 +182,15 @@ def process_clue():
         all_in_answer = guess
         getting_close = True
         # all of these must be in answer, save in global variable
-        game_log("process_clue: big clue - all right answers but not in correct position {}".format(all_in_answer))
-    
+        logging.info("process_clue: big clue - all right answers but not in correct position {}".format(all_in_answer))
+        clue_counts["c_bullscowsA"] +=1
+        # zero out all guess values not in all in answer
+        for position in range(game_positions):
+            for value in range(guess_range):
+                if value not in all_in_answer:
+                    guess_position_matrix.loc[value,position] = 0
+                    # print("value {} weight {}".format(value, guess_position_matrix.loc[value,position]))
+
     return all_in_answer, getting_close
 
 def generate_clue (answer, guess):
@@ -193,10 +219,15 @@ def generate_clue (answer, guess):
                     break
 
   clue = [bulls,cows]
-  game_log("generate_clue: working guess {} answer {} clue {}".format(guess_copy,answer_copy,clue))
+  logging.debug("generate_clue: working guess {} answer {} clue {}".format(guess_copy,answer_copy,clue))
   return clue
 
 if __name__ == "__main__":
+  #todo - change logging to use answer as part of filename
+  logging.basicConfig(filename='bullsandcows.log', level=logging.INFO)
+  clue_counts = {"clue_bulls0":0,"clue_bulls0cows0":0,"clue_bullsX":0,"clue_bulls0cowsA":0,"c_bullscowsA":0}
+  guess_counts = {"guesses_generated":0,"duplicate_guesses":0,"inconsistent_guesses":0 }
+
   debug = cfg.debug
   if debug:
       game_positions = cfg.game_posistions # big test is 5x10
@@ -210,33 +241,27 @@ if __name__ == "__main__":
   all_in_answer = []
   getting_close = False
 
-# to test matrix weights in 5X10 game
-  # prob_bump = 10 # this should force the answer
-  # guess_position_matrix.loc[0,0] = prob_bump  # setup answer
-  # guess_position_matrix.loc[5,1] = prob_bump
-  # guess_position_matrix.loc[1,2] = prob_bump
-  # guess_position_matrix.loc[8,3] = prob_bump
-  # guess_position_matrix.loc[1,4] = prob_bump
-  # guess_position_matrix.loc[6] = 0 # for testing, no 6's
-
 try_again = True
 while try_again:
   answer = random_answer(game_positions, guess_range)
-  game_log("main: answer: {}".format(answer))
+  logging.info("main: answer: {}".format(answer))
   correct_guess = False
   while not correct_guess:
     guess = generate_best_guess()
     clue = generate_clue(answer, guess)
-    all_in_answer, getting_close = process_clue()
-    guesses_clues.append([guess,clue])
-    game_log("main: guess {}: {} bulls: {}  cows: {}".format(len(guesses_clues),guess, clue[0], clue[1]))
+    guesses_clues.append([guess, clue])
+    logging.debug("main: guess {}: {} bulls: {}  cows: {}".format(len(guesses_clues),guess, clue[0], clue[1]))
     if clue[0] == game_positions:
       permutations = cfg.guess_range ** cfg.game_posistions
       print("\nyou got it!  it took you {} tries\nthere are {} possible answers\n".format(len(guesses_clues),permutations))
+      print("game review\n {}".format(tabulate(guesses_clues, headers=["guess", "clue"])))
+      logging.info("final guesses ({}) clues list {}".format(len(guesses_clues),guesses_clues))
+      logging.info("clue counts {}".format(clue_counts))
+      logging.info("guess counts {}".format(guess_counts))
+      logging.info("final matrix \n{}".format(guess_position_matrix))
       correct_guess = True
-      review_guesses_clues = input("do you want to review the guesses and clues? ").lower()
-      if review_guesses_clues == 'y':
-        print(tabulate(guesses_clues, headers=["guess", "clue"]))
+    else:
+      all_in_answer, getting_close = process_clue()
 
   try_again = False
 
