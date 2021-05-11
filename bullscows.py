@@ -7,7 +7,7 @@ import config as cfg
 from tabulate import tabulate
 import logging
 
-def setup_dataframe(game_positions, guess_range):
+def setup_dataframe():
   """
   build the positions and guess/answer dataframe with initial probabilities
   positions are represented by cols, guess values (guess_range) by rows
@@ -22,14 +22,16 @@ def setup_dataframe(game_positions, guess_range):
   guess_position_matrix = pd.DataFrame(columns=position_list, index=guess_list).fillna(initial_weight)
   return guess_position_matrix
 
-def random_answer (game_positions, guess_range):
+def random_answer ():
   """
   generate a random answer (list)
   returns: answer
   """  
   # use np.random.seed(n) for testing
-  if debug:
-    np.random.seed(999) # answer: 5x10 [0, 5, 1, 8, 1] 
+  if cfg.debug:
+    np.random.seed(cfg.random_seed) 
+    # 999 answer: 5x10 [0, 5, 1, 8, 1] 4x7 [0, 4, 5, 1] 
+    # 123 answer: 5x10 [2, 2, 6, 1, 3] 4x7 [6, 5, 6, 2]
   answer = []
   for i in range(game_positions):
     answer.append(np.random.randint(0,guess_range))
@@ -87,6 +89,8 @@ def normalize_matrix():
 def generate_best_guess ():
     """
     # need to work on this - danger of infiniate loop
+
+    #todo restructure this  -  make new functions out of big tests here
     """
     global getting_close
     good_guess = False
@@ -131,10 +135,10 @@ def generate_best_guess ():
             logging.debug("guess {} is not consistent with previous clues {}".format(guess, match_clue))
             guess_counts["inconsistent_guesses"] +=1
             inconsistent_guess = True
+            inconsistent_guess_list.append(guess)  # todo   need to save time and potentially improve normalization
 
       if valid_guess and not repeated_guess and not inconsistent_guess:  # valid guess should never be repeated?!
           good_guess = True
-
     return guess
 
 def process_clue():
@@ -218,35 +222,48 @@ def generate_clue (answer, guess):
 if __name__ == "__main__":
   #todo - change logging to use answer as part of filename
   logging.basicConfig(filename='bullsandcows.log', level=logging.INFO)
-  clue_counts = {"clue_bulls0":0,"clue_bulls0cows0":0,"clue_bullsX":0,"clue_bulls0cowsA":0,"c_bullscowsA":0}
-  guess_counts = {"guesses_generated":0,"duplicate_guesses":0,"inconsistent_guesses":0 }
-
-  debug = cfg.debug
-  if debug:
+  logging.info("main: game: {} x {}, factors: bull {}, cow {}, all {}, seed: {}"\
+    .format(cfg.game_posistions,cfg.guess_range,cfg.bulls_weight,cfg.cows_weight,cfg.all_factor,cfg.random_seed))
+  if cfg.debug:
       game_positions = cfg.game_posistions # big test is 5x10
       guess_range = cfg.guess_range
   else:
       game_positions = int(input("how many positions? "))
       guess_range = int(input("how many choices? "))
+        
+  permutations = cfg.guess_range ** cfg.game_posistions
+  print("\nthere are {} possible answers\n".format(permutations))
+  # add a lookup with how many guesses this program usually takes or you should be able to solve this in x
+  # todo   add logging for config info to use in stats  - day time  - maybe game id??
 
-  guess_position_matrix = setup_dataframe(game_positions, guess_range)
+# try_again = True
+# while try_again:
+for i in range(5):  # todo  bigtodo  need to reset stuff 
+  answer = random_answer()
+  logging.info("main: answer: {}".format(answer))
+  clue_counts = {"clue_bulls0":0,"clue_bulls0cows0":0,"clue_bullsX":0,"clue_bulls0cowsA":0,"c_bullscowsA":0}
+  guess_counts = {"guesses_generated":0,"duplicate_guesses":0,"inconsistent_guesses":0 }
+  guess_position_matrix = setup_dataframe()
   guesses_clues = []
+  inconsistent_guess_list = []
   all_in_answer = []
   getting_close = False
-
-try_again = True
-while try_again:
-  answer = random_answer(game_positions, guess_range)
-  logging.info("main: answer: {}".format(answer))
   correct_guess = False
+  guess = []
+  if cfg.debug:
+    seed_first_guess_for_stats = True 
   while not correct_guess:
-    guess = generate_best_guess()
+    if seed_first_guess_for_stats:
+      seed_first_guess_for_stats = False
+      for g in range(game_positions): 
+        guess.append(g)
+    else:
+      guess = generate_best_guess()
     clue = generate_clue(answer, guess)
     guesses_clues.append([guess, clue])
     logging.debug("main: guess {}: {} bulls: {}  cows: {}".format(len(guesses_clues),guess, clue[0], clue[1]))
     if clue[0] == game_positions:
-      permutations = cfg.guess_range ** cfg.game_posistions
-      print("\nyou got it!  it took you {} tries\nthere are {} possible answers\n".format(len(guesses_clues),permutations))
+      print("\nyou got it!  it took you {} tries\n".format(len(guesses_clues)))
       print("game review\n {}".format(tabulate(guesses_clues, headers=["guess", "clue"])))
       logging.info("final guesses ({}) clues list {}".format(len(guesses_clues),guesses_clues))
       logging.info("clue counts {}".format(clue_counts))
