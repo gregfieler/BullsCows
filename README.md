@@ -28,4 +28,5 @@ maybe even make the ui have cows with halo's or embarassed looks or something.
 guess the number - instead of calling it bulls and cows 
 
 wanna try it in HEX?
+i'll need to map 2 digit integers to hex (easiest/right? way simply do it in the UI - integers can represent anything 0,1,2,3,4,5 could be side of dice, 0-15 c/b 0-F)
 
