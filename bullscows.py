@@ -30,8 +30,8 @@ def random_answer ():
   # use np.random.seed(n) for testing
   if cfg.debug:
     np.random.seed(cfg.random_seed) 
-    # 999 answer: 5x10 [0, 5, 1, 8, 1] 4x7 [0, 4, 5, 1] 
-    # 123 answer: 5x10 [2, 2, 6, 1, 3] 4x7 [6, 5, 6, 2]
+    # 999 answer: 5x10 [0, 5, 1, 8, 1] 4x7 [0, 4, 5, 1] 3x15 [0, 12, 5]
+    # 123 answer: 5x10 [2, 2, 6, 1, 3] 4x7 [6, 5, 6, 2] 3x15 [14,13,14]
   answer = []
   for i in range(game_positions):
     answer.append(np.random.randint(0,guess_range))
@@ -228,17 +228,21 @@ if __name__ == "__main__":
       game_positions = cfg.game_posistions # big test is 5x10
       guess_range = cfg.guess_range
   else:
-      game_positions = int(input("how many positions? "))
-      guess_range = int(input("how many choices? "))
+      print("Let's play numbers!\nIt's a game a lot like 'Bulls and Cows.'\nI've made it so that you can make it easy OR make it extremely difficult.\n\n")
+      print("Be warned, I'm really good at this.\n")
+      print("how long a number do you want to play with?  (3 is pretty easy, 6 is challenging, 10 is extremely difficult)")
+      game_positions = int(input("How many positions? "))
+      print("Choices determines which digits to play with.  (6 would be like playing with 6 dice, 16 is like using hex values - very hard")
+      guess_range = int(input("How many choices? "))
         
   permutations = cfg.guess_range ** cfg.game_posistions
   print("\nthere are {} possible answers\n".format(permutations))
   # add a lookup with how many guesses this program usually takes or you should be able to solve this in x
   # todo   add logging for config info to use in stats  - day time  - maybe game id??
 
-# try_again = True
-# while try_again:
-for i in range(5):  # todo  bigtodo  need to reset stuff 
+# for i in range(5):  # todo  bigtodo  need to reset stuff 
+try_again = True
+while try_again:
   answer = random_answer()
   logging.info("main: answer: {}".format(answer))
   clue_counts = {"clue_bulls0":0,"clue_bulls0cows0":0,"clue_bullsX":0,"clue_bulls0cowsA":0,"c_bullscowsA":0}

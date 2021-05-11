@@ -1,2 +1,3 @@
 bullsandcows.log
 *.log
+/__pycache__*
