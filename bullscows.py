@@ -8,6 +8,7 @@ from tabulate import tabulate
 import logging
 import csv
 from datetime import datetime
+import os
 
 def setup_dataframe():
   """
@@ -64,23 +65,25 @@ def generate_guess():
       weights.append(choice_weight)
       guess = guess_position_matrix[guess_position_matrix[i]==choice_weight[0]].index.values
       guess_list.append(guess)
-  logging.debug("generate_guess: guess list {} weights {}".format(guess_list,weights))
+  logging.info("generate_guess: guess list {} weights {}".format(guess_list,weights))
   guess = []
   # randomly choose one of the values with the highest weight
   for i in range(game_positions):
       guess.append(random.choice(guess_list[i]))
-  logging.debug("generate_guess: working guess {}".format(guess))
+  logging.info("generate_guess: working guess {}".format(guess))
   logging.debug("generate_guess: matrix {}".format(guess_position_matrix))
 
   return guess
 
-def normalize_matrix():
-  logging.info("normalize matrix at guess {}".format(len(guesses_clues)))
+def normalize_matrix(normalize_count):
+  logging.info("normalize matrix {} time(s) at guess {}".format(normalize_count,len(guesses_clues)))
   logging.debug("matrix before normalize at guess {}\n{}".format(len(guesses_clues),guess_position_matrix))
   # guess_position_matrix = (guess_position_matrix - guess_position_matrix.mean()) / guess_position_matrix.std()
-  
-  # guess_position_matrix[guess_position_matrix != 0] = 1 / game_positions
-  guess_position_matrix[guess_position_matrix !=0 ] = (guess_position_matrix - guess_position_matrix.min()) + 1/game_positions
+  #todo   ideas about how to normalize -  reset weights based on clues and reprocess clues - how expensive?
+  if normalize_count <= len(guesses_clues):
+    guess_position_matrix[guess_position_matrix !=0] = (guess_position_matrix - guess_position_matrix.min()) + 1/game_positions
+  else:
+    guess_position_matrix[guess_position_matrix !=0] = 1/game_positions
 
   # for position in range(game_positions):
   #     for value in range(guess_range):
@@ -104,7 +107,7 @@ def generate_best_guess ():
       ### answer must include is cccc <-- ooops, this is the wrong way
       if getting_close: # a previous guess had all the correct values
           check_them_off = copy.copy(all_in_answer)
-          logging.debug("generate_best_guess: guess {} all in {}".format(guess,check_them_off))
+          logging.info("generate_best_guess: getting close guess {} all in {}".format(guess,check_them_off))
           # walk thru must include - check them off
           match_count = 0
           valid_guess = True
@@ -120,24 +123,30 @@ def generate_best_guess ():
       # check to see if guess has been tried - if it has try agin - if not check for consistency
       repeated_guess = False
       inconsistent_guess = False
+      normalize_count = 0
       for prev_guess in guesses_clues:
-        normalized_once = False
+        # normalized_once = False
+        # normalize_count = 0  # MOVED WITHOUT THINKING TOO MUCH
         if guess == prev_guess[0]:
-          logging.debug("generate_best_guess: already tried {}, resetting weights".format(guess))
+          logging.info("generate_best_guess: already tried {}, resetting weights".format(guess))
           guess_counts["duplicate_guesses"] += 1 
           repeated_guess = True
           #todo a better way - based on now many times the guess/pos has had high bulls scores (dictionary)
           # guess_position_matrix[guess_position_matrix != 0] = 1 / game_positions
-          if not normalized_once:
-            normalize_matrix()
+          # if not normalized_once:
+          #   normalize_matrix()
+          normalize_count += 1
+          normalize_matrix(normalize_count)
         else:
-          # use the guess as the answer and make sure all of previous guesses give the same answer
-          match_clue = generate_clue(guess, prev_guess[0])
-          if match_clue != prev_guess[1]:
-            logging.debug("guess {} is not consistent with previous clues {}".format(guess, match_clue))
-            guess_counts["inconsistent_guesses"] +=1
-            inconsistent_guess = True
-            inconsistent_guess_list.append(guess)  # todo   need to save time and potentially improve normalization
+          if not inconsistent_guess: # already know this is not a good guess - no need to check more
+            #      may want to reuse this code for validating user clues
+            # use the guess as the answer and make sure all of previous guesses give the same answer
+            match_clue = generate_clue(guess, prev_guess[0])
+            if match_clue != prev_guess[1]:
+              logging.info("generate_best_guess: guess {} is not consistent with previous clues {} yeilds {}".format(guess,prev_guess,match_clue))
+              guess_counts["inconsistent_guesses"] +=1
+              inconsistent_guess = True
+              # inconsistent_guess_list.append(guess)  # todo   need to save time and potentially improve normalization
 
       if valid_guess and not repeated_guess and not inconsistent_guess:  # valid guess should never be repeated?!
           good_guess = True
@@ -190,13 +199,18 @@ def process_clue():
                 if value not in all_in_answer:
                     guess_position_matrix.loc[value,position] = 0
     logging.info("process_clue: {} {} {} factors: clue {:.4f} bulls {:.4f} cows {:.4f}".format(len(guesses_clues),clue,guess,clue_factor, bulls_factor, cows_factor))
-    logging.info("matrix\n{}".format(guess_position_matrix))
+    logging.info("process_clue: matrix\n{}".format(guess_position_matrix))
+    logging.info("process_clue: guesses_clues {}".format(guesses_clues))
     return all_in_answer, getting_close
 
 def write_stats ():
-  # headers = ['gametime','player','positions','range','answer','guesses','bull_weight','cow_weight','all_factor',\
-  #   'guesses_generated','duplicate_guesses','inconsistent_guesses',\
-  #   'clue_blulls0','clue_bulls0cows0','clue_bullsX','clue_bulls0cowsA','c_bullscowsA']
+  if not os.path.exists('bullscowsstats.csv'):
+    with open('bullscowsstats.csv', 'a') as stats_file:
+      headers = ['gametime','player','positions','range','answer','guesses','bull_weight','cow_weight','all_factor',\
+        'guesses_generated','duplicate_guesses','inconsistent_guesses',\
+        'clue_blulls0','clue_bulls0cows0','clue_bullsX','clue_bulls0cowsA','c_bullscowsA']
+      write = csv.writer(stats_file)
+      write.writerow(headers)
   now = datetime.now()
   game_id = now.strftime('%Y/%m/%d %H:%M:%S')
   stats = [game_id,cfg.guesser,cfg.game_posistions,cfg.guess_range,answer,len(guesses_clues),cfg.bulls_weight,cfg.cows_weight,cfg.all_factor,\
@@ -204,7 +218,6 @@ def write_stats ():
     clue_counts["clue_bulls0"],clue_counts["clue_bulls0cows0"],clue_counts["clue_bullsX"],clue_counts["clue_bulls0cowsA"],clue_counts["c_bullscowsA"]]
   with open('bullscowsstats.csv', 'a') as stats_file:
     write = csv.writer(stats_file)
-    # write.writerow(headers)
     write.writerow(stats)
 
 def generate_clue (answer, guess):
@@ -254,10 +267,12 @@ if __name__ == "__main__":
         
   permutations = cfg.guess_range ** cfg.game_posistions
   print("\nthere are {} possible answers\n".format(permutations))
+  #todo   this seems to be wrong
+
   # add a lookup with how many guesses this program usually takes or you should be able to solve this in x
   # todo   add logging for config info to use in stats  - day time  - maybe game id??
 
-for i in range(15):  # todo  make this a part of config
+for i in range(3):  # todo  make this a part of config
 # try_again = True
 # while try_again:
   answer = random_answer()
@@ -266,7 +281,7 @@ for i in range(15):  # todo  make this a part of config
   guess_counts = {"guesses_generated":0,"duplicate_guesses":0,"inconsistent_guesses":0 }
   guess_position_matrix = setup_dataframe()
   guesses_clues = []
-  inconsistent_guess_list = []
+  # inconsistent_guess_list = []
   all_in_answer = []
   getting_close = False
   correct_guess = False
