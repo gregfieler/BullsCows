@@ -6,6 +6,8 @@ import pandas as pd
 import config as cfg
 from tabulate import tabulate
 import logging
+import csv
+from datetime import datetime
 
 def setup_dataframe():
   """
@@ -146,7 +148,8 @@ def process_clue():
     update the guess position matrix based on clue
     """
     # generate_factors
-    clue_factor, bulls_factor, cows_factor = generate_factors()    
+    clue_factor, bulls_factor, cows_factor = generate_factors() 
+    #todo refactor this code
     if clue[0] == 0 and clue[1] == 0:  # none of these values are in the answer
         clue_counts["clue_bulls0cows0"] += 1
         for position in range(game_positions):
@@ -189,6 +192,20 @@ def process_clue():
     logging.info("process_clue: {} {} {} factors: clue {:.4f} bulls {:.4f} cows {:.4f}".format(len(guesses_clues),clue,guess,clue_factor, bulls_factor, cows_factor))
     logging.info("matrix\n{}".format(guess_position_matrix))
     return all_in_answer, getting_close
+
+def write_stats ():
+  # headers = ['gametime','player','positions','range','answer','guesses','bull_weight','cow_weight','all_factor',\
+  #   'guesses_generated','duplicate_guesses','inconsistent_guesses',\
+  #   'clue_blulls0','clue_bulls0cows0','clue_bullsX','clue_bulls0cowsA','c_bullscowsA']
+  now = datetime.now()
+  game_id = now.strftime('%Y/%m/%d %H:%M:%S')
+  stats = [game_id,cfg.guesser,cfg.game_posistions,cfg.guess_range,answer,len(guesses_clues),cfg.bulls_weight,cfg.cows_weight,cfg.all_factor,\
+    guess_counts["guesses_generated"],guess_counts["duplicate_guesses"],guess_counts["inconsistent_guesses"],\
+    clue_counts["clue_bulls0"],clue_counts["clue_bulls0cows0"],clue_counts["clue_bullsX"],clue_counts["clue_bulls0cowsA"],clue_counts["c_bullscowsA"]]
+  with open('bullscowsstats.csv', 'a') as stats_file:
+    write = csv.writer(stats_file)
+    # write.writerow(headers)
+    write.writerow(stats)
 
 def generate_clue (answer, guess):
   """ 
@@ -240,9 +257,9 @@ if __name__ == "__main__":
   # add a lookup with how many guesses this program usually takes or you should be able to solve this in x
   # todo   add logging for config info to use in stats  - day time  - maybe game id??
 
-# for i in range(5):  # todo  bigtodo  need to reset stuff 
-try_again = True
-while try_again:
+for i in range(15):  # todo  make this a part of config
+# try_again = True
+# while try_again:
   answer = random_answer()
   logging.info("main: answer: {}".format(answer))
   clue_counts = {"clue_bulls0":0,"clue_bulls0cows0":0,"clue_bullsX":0,"clue_bulls0cowsA":0,"c_bullscowsA":0}
@@ -273,6 +290,7 @@ while try_again:
       logging.info("clue counts {}".format(clue_counts))
       logging.info("guess counts {}".format(guess_counts))
       logging.info("final matrix \n{}".format(guess_position_matrix))
+      write_stats()
       correct_guess = True
     else:
       all_in_answer, getting_close = process_clue()

@@ -1,4 +1,5 @@
 bullsandcows.log
+bullscowsstats.csv
 *.log
 /__pycache__*
 .logs4*

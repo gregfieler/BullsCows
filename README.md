@@ -16,11 +16,15 @@ This project is for practice and learning.  The 'business logic' is mostly about
 
 ## stuff to work on
 - save results to a csv file
-  - use it as a dataframe inside scripts
+  - use it as a dataframe inside scripts that calc averages and analyze factor effectiveness
 - build a UI (Django,react??)
   - restructure project MVC
 - make a new module to process results
   - calculate performance (send avg guess by game size to main module, study how configutation factors affect matrix)
+- when human player is giving clues need a way to make sure clues are consistent (or risk an ∞ loop)
+  - loop thru guesses checking that clue is same, if not mark clue(s) as suspicious
+- figure out how to reduce insonsistent guesses
+  
 
 ---
 ***brainstorming***
