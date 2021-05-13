@@ -76,13 +76,14 @@ def generate_guess():
   return guess
 
 def normalize_matrix(normalize_count):
-  logging.info("normalize matrix {} time(s) at guess {}".format(normalize_count,len(guesses_clues)))
   logging.debug("matrix before normalize at guess {}\n{}".format(len(guesses_clues),guess_position_matrix))
   # guess_position_matrix = (guess_position_matrix - guess_position_matrix.mean()) / guess_position_matrix.std()
   #todo   ideas about how to normalize -  reset weights based on clues and reprocess clues - how expensive?
-  if normalize_count <= len(guesses_clues):
+  if normalize_count == 1:
+    logging.info("normalize matrix {} first time(rescale) at guess {}".format(normalize_count,len(guesses_clues)))
     guess_position_matrix[guess_position_matrix !=0] = (guess_position_matrix - guess_position_matrix.min()) + 1/game_positions
   else:
+    logging.info("normalize matrix {} equal weight at guess {}".format(normalize_count,len(guesses_clues)))
     guess_position_matrix[guess_position_matrix !=0] = 1/game_positions
 
   # for position in range(game_positions):
@@ -100,6 +101,7 @@ def generate_best_guess ():
     global getting_close
     good_guess = False
     valid_guess = True
+    normalize_count = 0
     while not good_guess:
       guess = generate_guess()
       guess_counts["guesses_generated"] += 1  
@@ -123,11 +125,10 @@ def generate_best_guess ():
       # check to see if guess has been tried - if it has try agin - if not check for consistency
       repeated_guess = False
       inconsistent_guess = False
-      normalize_count = 0
       for prev_guess in guesses_clues:
         # normalized_once = False
         # normalize_count = 0  # MOVED WITHOUT THINKING TOO MUCH
-        if guess == prev_guess[0]:
+        if prev_guess[0] == guess:
           logging.info("generate_best_guess: already tried {}, resetting weights".format(guess))
           guess_counts["duplicate_guesses"] += 1 
           repeated_guess = True
@@ -265,16 +266,16 @@ if __name__ == "__main__":
       print("Choices determines which digits to play with.  (6 would be like playing with 6 dice, 16 is like using hex values - very hard")
       guess_range = int(input("How many choices? "))
         
-  permutations = cfg.guess_range ** cfg.game_posistions
+  permutations = (cfg.guess_range - 1) ** cfg.game_posistions
   print("\nthere are {} possible answers\n".format(permutations))
   #todo   this seems to be wrong
 
   # add a lookup with how many guesses this program usually takes or you should be able to solve this in x
   # todo   add logging for config info to use in stats  - day time  - maybe game id??
 
-for i in range(3):  # todo  make this a part of config
-# try_again = True
-# while try_again:
+# for i in range(300):  # todo  make this a part of config
+try_again = True
+while try_again:
   answer = random_answer()
   logging.info("main: answer: {}".format(answer))
   clue_counts = {"clue_bulls0":0,"clue_bulls0cows0":0,"clue_bullsX":0,"clue_bulls0cowsA":0,"c_bullscowsA":0}

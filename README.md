@@ -16,6 +16,7 @@ This project is for practice and learning.  The 'business logic' is mostly about
 
 ## changes
 - updated process clues to stop review of inconsistent guesses when even one is found
+- updated normalize logic to go to equal weights after the first attempt (fixed permuataions calc)
 
 ## stuff to work on
 - need to figure out what's wrong with permutations calc
@@ -57,7 +58,7 @@ i'll need to map 2 digit integers to hex (easiest/right? way simply do it in the
 
 ### game script
 
-"I'm picking A die to putting in the numbered boxes.  You place one of your die in front of each box.  If your choices match mine, you win.  If not I'll give you a clue.  You have Y gueses to get the right answer."
+"I'm picking a die to put in each of the numbered boxes.  You place one of your die in front of each box.  If your choices match mine, you win.  If not I'll give you a clue.  You have Y gueses to get the right answer."
 
 "if you think i'm cheating i double dog dare youto try! you pick the number and I guess, then I pick a number and you guess. I'll bet I can beat you 2/3 times, best of 5, best of 6 - you choose"
 

@@ -3,3 +3,4 @@ bullscowsstats.csv
 *.log
 /__pycache__*
 .logs4*
+*.cprof
