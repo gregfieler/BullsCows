@@ -3,6 +3,20 @@ focusing on 'dice' game
 # Notes about the kinds of things to glean from the data
 average number of guesses for each game size
 
+----
+populating stats file
+
+base training set: (run for factor variations) - end goal use ML to determine most effective factors
+
+[ ] 2x7  [ ] 123 [ ] 999 [ ] noseed
+
+[ ] 3x7  [ ] 123 [ ] 999 [ ] noseed
+
+[ ] 4x7  [ ] 123 [ ] 999 [ ] noseed
+
+[ ] 5x7  [ ] 123 [ ] 999 [ ] noseed
+
+[ ] 6x7  [ ] 123 [ ] 999 [ ] noseed
 
 ## parameters
 

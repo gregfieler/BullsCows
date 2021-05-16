@@ -19,9 +19,10 @@ This project is for practice and learning.  The 'business logic' is mostly about
 - updated normalize logic to go to equal weights after the first attempt (fixed permuataions calc)
 
 ## stuff to work on
-- need to figure out what's wrong with permutations calc
+- [x] need to figure out what's wrong with permutations calc
 - [x] save results to a csv file
   - use it as a dataframe inside scripts that calc averages and analyze factor effectiveness
+- [ ] review logging.info's change to debug
 - build a UI (Django,react??)
   - restructure project MVC
 - make a new module to process results
